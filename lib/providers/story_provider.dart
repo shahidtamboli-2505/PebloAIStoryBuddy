@@ -1,144 +1,96 @@
-/// StoryProvider — Riverpod state management for story narration.
-///
-/// Manages the complete lifecycle of the narration flow:
-/// Idle → Loading → Speaking → AudioComplete → QuizVisible
-///
-/// Also handles Error state with retry capability.
-library;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/tts_service.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
-// ---------------------------------------------------------------------------
-// Story state enum
-// ---------------------------------------------------------------------------
-
-/// Represents every possible state in the narration lifecycle.
 enum StoryState {
-  /// Initial state — nothing has happened yet.
-  idle,
-
-  /// TTS engine is being prepared.
-  loading,
-
-  /// Story is being narrated aloud.
-  speaking,
-
-  /// Narration just finished; transitional state.
-  audioComplete,
-
-  /// Quiz section is now visible to the user.
+  initial,
+  loadingTts,
+  playingTts,
+  ttsError,
+  ttsCompleted,
   quizVisible,
-
-  /// User answered the quiz correctly 🎉
   success,
-
-  /// Something went wrong (TTS init, speech error, etc.)
-  error,
 }
 
-// ---------------------------------------------------------------------------
-// Story text constant
-// ---------------------------------------------------------------------------
-
-/// The story narrated to the child.
-const String kStoryText =
-    'Once upon a time, a clever little robot named Pip lost his shiny blue '
-    'gear in the Whispering Woods. He searched high and low, asking the '
-    'friendly fireflies and wise old owls for help. After a great adventure, '
-    'Pip finally found his gear sparkling under a mushroom, guarded by a '
-    'tiny sleeping snail. Pip thanked everyone and rolled home happily, '
-    'his gears spinning bright!';
-
-// ---------------------------------------------------------------------------
-// TTS service provider (singleton)
-// ---------------------------------------------------------------------------
-
-/// Provides a single [TTSService] instance across the app.
-final ttsServiceProvider = Provider<TTSService>((ref) {
-  final service = TTSService();
-  ref.onDispose(() => service.dispose());
-  return service;
-});
-
-// ---------------------------------------------------------------------------
-// Story state notifier
-// ---------------------------------------------------------------------------
-
-/// Manages narration state transitions and TTS interaction.
 class StoryNotifier extends StateNotifier<StoryState> {
-  StoryNotifier(this._ttsService) : super(StoryState.idle);
+  final FlutterTts _flutterTts = FlutterTts();
+  String? _currentStoryText;
 
-  final TTSService _ttsService;
+  StoryNotifier() : super(StoryState.initial) {
+    _initTts();
+  }
 
-  /// Starts the narration flow for a specific [storyText].
-  Future<void> startNarration(String storyText) async {
-    if (state == StoryState.speaking || state == StoryState.loading) return;
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage("en-US");
+    await _flutterTts.setSpeechRate(0.45);
+    await _flutterTts.setVolume(1.0);
+    await _flutterTts.setPitch(1.2); // Make it sound cute/kid-friendly
 
-    state = StoryState.loading;
+    _flutterTts.setStartHandler(() {
+      if (mounted) state = StoryState.playingTts;
+    });
 
-    try {
-      // Init TTS engine
-      if (!_ttsService.isInitialized) {
-        await _ttsService.init();
+    _flutterTts.setCompletionHandler(() {
+      if (mounted) {
+        state = StoryState.ttsCompleted;
+        // Automatically show quiz after TTS ends
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) showQuiz();
+        });
       }
+    });
 
-      // Wire up completion callback
-      _ttsService.setCompletionHandler(() {
-        if (mounted) {
-          state = StoryState.audioComplete;
-          Future.delayed(const Duration(milliseconds: 600), () {
-            if (mounted) {
-              state = StoryState.quizVisible;
-            }
-          });
-        }
-      });
+    _flutterTts.setErrorHandler((msg) {
+      if (mounted) {
+        state = StoryState.ttsError;
+        // Fallback to quiz visible so user doesn't get stuck if TTS fails
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) showQuiz();
+        });
+      }
+    });
+  }
 
-      // Wire up error callback
-      _ttsService.setErrorHandler((error) {
-        if (mounted) {
-          state = StoryState.error;
-        }
-      });
-
-      // Start speaking
-      state = StoryState.speaking;
-      await _ttsService.speak(storyText);
+  Future<void> playNarration(String text) async {
+    state = StoryState.loadingTts;
+    _currentStoryText = text;
+    
+    // Give UI a tiny moment to show loading state before blocking thread
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    try {
+      await _flutterTts.speak(text);
     } catch (e) {
       if (mounted) {
-        state = StoryState.error;
+        state = StoryState.ttsError;
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) showQuiz();
+        });
       }
     }
+  }
+
+  Future<void> stopNarration() async {
+    await _flutterTts.stop();
+    if (mounted && state == StoryState.playingTts) {
+      state = StoryState.initial;
+    }
+  }
+
+  void showQuiz() {
+    state = StoryState.quizVisible;
   }
 
   void setSuccess() {
     state = StoryState.success;
   }
-
-  void reset() {
-    _ttsService.stop();
-    state = StoryState.idle;
-  }
-
-  Future<void> retry(String storyText) async {
-    state = StoryState.idle;
-    await startNarration(storyText);
-  }
-
+  
   @override
   void dispose() {
-    _ttsService.stop();
+    _flutterTts.stop();
     super.dispose();
   }
 }
 
-// ---------------------------------------------------------------------------
-// Riverpod provider
-// ---------------------------------------------------------------------------
-
-final storyProvider = StateNotifierProvider<StoryNotifier, StoryState>((ref) {
-  final ttsService = ref.watch(ttsServiceProvider);
-  return StoryNotifier(ttsService);
+final storyProvider = StateNotifierProvider.autoDispose<StoryNotifier, StoryState>((ref) {
+  return StoryNotifier();
 });
-

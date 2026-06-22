@@ -1,180 +1,156 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/library_provider.dart';
-import '../services/ai_service.dart';
-import '../models/story_data.dart';
+import '../data/offline_stories.dart';
 import 'story_screen.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final TextEditingController _topicController = TextEditingController();
-  final AiService _aiService = AiService();
-  bool _isGenerating = false;
-
-  void _generateStory() async {
-    final topic = _topicController.text.trim();
-    if (topic.isEmpty) return;
-
-    setState(() {
-      _isGenerating = true;
-    });
-
-    try {
-      final story = await _aiService.generateStory(topic);
-      
-      // Save it immediately to the library
-      await ref.read(libraryProvider.notifier).saveStory(story);
-
-      if (mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => StoryScreen(storyData: story),
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating story: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-          _topicController.clear();
-        });
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final savedStories = ref.watch(libraryProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFFEDE7F6),
       appBar: AppBar(
-        title: const Text('✨ Peblo Story Library', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+        title: const Text('✨ Peblo Story Buddy', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // AI Generation Section
+            const SizedBox(height: 16),
+            // Hero section
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C4DFF), Color(0xFFB388FF)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: const Row(
                 children: [
-                  const Text(
-                    'Create a New Story',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _topicController,
-                          decoration: InputDecoration(
-                            hintText: 'e.g., A dog who goes to space',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  Text('🤖', style: TextStyle(fontSize: 48)),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hi, I\'m Pip!',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                          onSubmitted: (_) => _generateStory(),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      _isGenerating
-                          ? const Padding(
-                              padding: EdgeInsets.all(12.0),
-                              child: CircularProgressIndicator(),
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.auto_awesome, color: Colors.deepPurple),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.deepPurple.shade50,
-                                padding: const EdgeInsets.all(12),
-                              ),
-                              onPressed: _generateStory,
-                            ),
-                    ],
+                        SizedBox(height: 4),
+                        Text(
+                          'Pick a story below and let\'s go on an adventure together!',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 32),
             
-            const Text(
-              'Your Saved Stories',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text(
+                'Story Library',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             
             // Library Section
             Expanded(
-              child: savedStories.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No stories yet.\nGenerate one above!',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: savedStories.length,
-                      itemBuilder: (context, index) {
-                        final story = savedStories[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
-                            leading: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.deepPurple.shade50,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.book, color: Colors.deepPurple),
-                            ),
-                            title: Text(story.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('Theme: ${story.theme}'),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              onPressed: () {
-                                ref.read(libraryProvider.notifier).deleteStory(story.id);
-                              },
-                            ),
-                            onTap: () {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                builder: (context) => StoryScreen(storyData: story),
-                              ));
-                            },
-                          ),
-                        );
-                      },
+              child: ListView.builder(
+                itemCount: offlineStories.length,
+                itemBuilder: (context, index) {
+                  final story = offlineStories[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (context) => StoryScreen(storyData: story),
+                          ));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade50,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Text('📖', style: TextStyle(fontSize: 24)),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      story.title,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF37474F),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Theme: ${story.theme}',
+                                      style: TextStyle(color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, color: Colors.deepPurple),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

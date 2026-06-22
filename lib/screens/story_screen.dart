@@ -1,11 +1,3 @@
-/// StoryScreen — The main (and only) screen of Peblo AI Story Buddy.
-///
-/// Composes all widgets into a single scrollable view:
-/// BuddyAvatar → StoryCard → ReadStoryButton → QuizSection/SuccessCard
-///
-/// Manages confetti animation overlay and quiz slide-in animation.
-library;
-
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,13 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/story_data.dart';
 import '../providers/story_provider.dart';
 import '../providers/quiz_provider.dart';
-import '../widgets/buddy_avatar.dart';
-import '../widgets/story_card.dart';
-import '../widgets/read_story_button.dart';
 import '../widgets/quiz_section.dart';
 import '../widgets/success_card.dart';
 
-/// The primary screen of the app — a single-page experience.
 class StoryScreen extends ConsumerStatefulWidget {
   final StoryData storyData;
 
@@ -40,7 +28,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
   void initState() {
     super.initState();
 
-    // Set the quiz data into the provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(quizProvider.notifier).setQuiz(widget.storyData.quiz);
     });
@@ -78,7 +65,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
     final storyState = ref.watch(storyProvider);
     final quizState = ref.watch(quizProvider);
 
-    // React to state transitions
     ref.listen<StoryState>(storyProvider, (previous, next) {
       if (next == StoryState.quizVisible) {
         _quizSlideController.forward(from: 0);
@@ -86,7 +72,7 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
       if (next == StoryState.success) {
         _confettiController.play();
       }
-      if (next == StoryState.idle) {
+      if (next == StoryState.initial) {
         _quizSlideController.reset();
         _confettiController.stop();
       }
@@ -100,7 +86,7 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black54),
           onPressed: () {
-            ref.read(storyProvider.notifier).reset();
+            ref.read(storyProvider.notifier).stopNarration();
             Navigator.of(context).pop();
           },
         ),
@@ -115,29 +101,89 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
               child: Column(
                 children: [
                   const SizedBox(height: 10),
-                  _AppTitle(storyState: storyState, title: widget.storyData.title),
+                  _AppTitle(title: widget.storyData.title),
                   const SizedBox(height: 20),
-                  BuddyAvatar(storyState: storyState),
+                  _BuddyAvatar(storyState: storyState),
                   const SizedBox(height: 8),
                   _SpeechBubble(storyState: storyState),
                   const SizedBox(height: 24),
-                  StoryCard(
-                    storyText: widget.storyData.text,
-                    storyState: storyState,
-                  ),
-                  const SizedBox(height: 24),
-                  if (storyState != StoryState.quizVisible &&
-                      storyState != StoryState.success)
-                    ReadStoryButton(
-                      storyState: storyState,
-                      onPressed: () {
-                        if (storyState == StoryState.error) {
-                          ref.read(storyProvider.notifier).retry(widget.storyData.text);
-                        } else {
-                          ref.read(storyProvider.notifier).startNarration(widget.storyData.text);
-                        }
-                      },
+                  
+                  // Story Text Card
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
+                    child: Text(
+                      widget.storyData.text,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Color(0xFF37474F),
+                        height: 1.6,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  
+                  // Read Button / Loading State
+                  if (storyState == StoryState.initial || storyState == StoryState.ttsError)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C4DFF),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          elevation: 8,
+                          shadowColor: const Color(0xFF7C4DFF).withValues(alpha: 0.5),
+                        ),
+                        icon: const Icon(Icons.volume_up_rounded, size: 28),
+                        label: Text(
+                          storyState == StoryState.ttsError ? 'Try Reading Again' : 'Read Me a Story!',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          ref.read(storyProvider.notifier).playNarration(widget.storyData.text);
+                        },
+                      ),
+                    ),
+
+                  if (storyState == StoryState.loadingTts)
+                    const Padding(
+                      padding: EdgeInsets.all(24.0),
+                      child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+                    ),
+                  
+                  if (storyState == StoryState.playingTts)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF7C4DFF),
+                          side: const BorderSide(color: Color(0xFF7C4DFF), width: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        icon: const Icon(Icons.stop_circle_rounded, size: 28),
+                        label: const Text('Stop Reading', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        onPressed: () {
+                          ref.read(storyProvider.notifier).stopNarration();
+                        },
+                      ),
+                    ),
+
                   if (storyState == StoryState.quizVisible && quizState != null)
                     SlideTransition(
                       position: _quizSlideAnimation,
@@ -149,40 +195,15 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
                         ),
                       ),
                     ),
+
                   if (storyState == StoryState.success)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: SuccessCard(
                         onPlayAgain: () {
-                          ref.read(storyProvider.notifier).reset();
-                          ref.read(quizProvider.notifier).reset();
+                          ref.read(storyProvider.notifier).stopNarration();
+                          Navigator.of(context).pop();
                         },
-                      ),
-                    ),
-                  if (storyState == StoryState.error)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16),
-                      child: Column(
-                        children: [
-                          const Text(
-                            '😢 Oops! Something went wrong.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFEF5350),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'The story reader had a hiccup.\nTap the button to try again!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                 ],
@@ -195,10 +216,10 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
               confettiController: _confettiController,
               blastDirectionality: BlastDirectionality.explosive,
               shouldLoop: false,
-              numberOfParticles: 25,
-              maxBlastForce: 30,
-              minBlastForce: 10,
-              gravity: 0.2,
+              numberOfParticles: 35,
+              maxBlastForce: 40,
+              minBlastForce: 20,
+              gravity: 0.15,
               colors: const [
                 Color(0xFF7C4DFF),
                 Color(0xFFFF9100),
@@ -214,10 +235,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
     );
   }
 }
-
-// ---------------------------------------------------------------------------
-// Private helper widgets
-// ---------------------------------------------------------------------------
 
 class _Background extends StatelessWidget {
   final StoryState storyState;
@@ -240,38 +257,21 @@ class _Background extends StatelessWidget {
 
   List<Color> get _gradientColors {
     switch (storyState) {
-      case StoryState.speaking:
-        return [
-          const Color(0xFFFFF8E1),
-          const Color(0xFFFFE0B2),
-          const Color(0xFFFFF3E0),
-        ];
+      case StoryState.playingTts:
+        return [const Color(0xFFFFF8E1), const Color(0xFFFFE0B2), const Color(0xFFFFF3E0)];
       case StoryState.success:
-        return [
-          const Color(0xFFE8F5E9),
-          const Color(0xFFC8E6C9),
-          const Color(0xFFE8F5E9),
-        ];
-      case StoryState.error:
-        return [
-          const Color(0xFFFCE4EC),
-          const Color(0xFFFFCDD2),
-          const Color(0xFFFCE4EC),
-        ];
+        return [const Color(0xFFE8F5E9), const Color(0xFFC8E6C9), const Color(0xFFE8F5E9)];
+      case StoryState.ttsError:
+        return [const Color(0xFFFCE4EC), const Color(0xFFFFCDD2), const Color(0xFFFCE4EC)];
       default:
-        return [
-          const Color(0xFFEDE7F6),
-          const Color(0xFFE8EAF6),
-          const Color(0xFFF3E5F5),
-        ];
+        return [const Color(0xFFEDE7F6), const Color(0xFFE8EAF6), const Color(0xFFF3E5F5)];
     }
   }
 }
 
 class _AppTitle extends StatelessWidget {
-  final StoryState storyState;
   final String title;
-  const _AppTitle({required this.storyState, required this.title});
+  const _AppTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +284,7 @@ class _AppTitle extends StatelessWidget {
               colors: [Color(0xFF7C4DFF), Color(0xFFE040FB)],
             ).createShader(bounds),
             child: const Text(
-              '✨ Peblo AI ✨',
+              '✨ Peblo Story ✨',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
@@ -293,18 +293,57 @@ class _AppTitle extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             title,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-              letterSpacing: 0.5,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.deepPurple.shade700,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BuddyAvatar extends StatelessWidget {
+  final StoryState storyState;
+
+  const _BuddyAvatar({required this.storyState});
+
+  @override
+  Widget build(BuildContext context) {
+    String emoji = '🤖';
+    if (storyState == StoryState.success) emoji = '🤩';
+    if (storyState == StoryState.ttsError) emoji = '😵';
+    if (storyState == StoryState.playingTts) emoji = '🗣️';
+
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.deepPurple.withValues(alpha: 0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+        child: Text(
+          emoji,
+          key: ValueKey(emoji),
+          style: const TextStyle(fontSize: 50),
+        ),
       ),
     );
   }
@@ -316,20 +355,13 @@ class _SpeechBubble extends StatelessWidget {
 
   String get _text {
     switch (storyState) {
-      case StoryState.idle:
-        return 'Hi there! Ready for a story? 🌟';
-      case StoryState.loading:
-        return 'Let me warm up my voice... 🎤';
-      case StoryState.speaking:
-        return 'Listen closely! 🎧';
-      case StoryState.audioComplete:
-        return 'Story done! Quiz time... 🧠';
-      case StoryState.quizVisible:
-        return 'Can you answer this? 🤔';
-      case StoryState.success:
-        return 'You\'re a genius! 🎉';
-      case StoryState.error:
-        return 'Oh no, let\'s try again! 😅';
+      case StoryState.initial: return 'Hi! Ready for a story? 🌟';
+      case StoryState.loadingTts: return 'Warming up my voice... 🎤';
+      case StoryState.playingTts: return 'Listen closely! 🎧';
+      case StoryState.ttsCompleted: return 'Story done! Loading quiz...';
+      case StoryState.quizVisible: return 'Can you answer this? 🤔';
+      case StoryState.success: return 'You\'re a genius! 🎉';
+      case StoryState.ttsError: return 'Oops, my voice box broke! 😅';
     }
   }
 
@@ -337,16 +369,6 @@ class _SpeechBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.3),
-            end: Offset.zero,
-          ).animate(animation),
-          child: child,
-        ),
-      ),
       child: Container(
         key: ValueKey(storyState),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -355,7 +377,7 @@ class _SpeechBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -364,7 +386,7 @@ class _SpeechBubble extends StatelessWidget {
         child: Text(
           _text,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFF546E7A),
           ),
