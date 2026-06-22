@@ -71,29 +71,22 @@ class StoryNotifier extends StateNotifier<StoryState> {
 
   final TTSService _ttsService;
 
-  /// Starts the narration flow.
-  ///
-  /// 1. Sets state to [StoryState.loading]
-  /// 2. Initializes TTS if needed
-  /// 3. Registers completion / error handlers
-  /// 4. Speaks the story text
-  /// 5. On completion → [StoryState.audioComplete] → [StoryState.quizVisible]
-  Future<void> startNarration() async {
+  /// Starts the narration flow for a specific [storyText].
+  Future<void> startNarration(String storyText) async {
     if (state == StoryState.speaking || state == StoryState.loading) return;
 
     state = StoryState.loading;
 
     try {
-      // Init TTS engine (idempotent if already initialized)
+      // Init TTS engine
       if (!_ttsService.isInitialized) {
         await _ttsService.init();
       }
 
-      // Wire up completion callback → trigger quiz reveal
+      // Wire up completion callback
       _ttsService.setCompletionHandler(() {
         if (mounted) {
           state = StoryState.audioComplete;
-          // Small delay so the user sees the transition, then reveal quiz
           Future.delayed(const Duration(milliseconds: 600), () {
             if (mounted) {
               state = StoryState.quizVisible;
@@ -111,7 +104,7 @@ class StoryNotifier extends StateNotifier<StoryState> {
 
       // Start speaking
       state = StoryState.speaking;
-      await _ttsService.speak(kStoryText);
+      await _ttsService.speak(storyText);
     } catch (e) {
       if (mounted) {
         state = StoryState.error;
@@ -119,21 +112,18 @@ class StoryNotifier extends StateNotifier<StoryState> {
     }
   }
 
-  /// Transitions to success after correct quiz answer.
   void setSuccess() {
     state = StoryState.success;
   }
 
-  /// Resets to idle for a retry.
   void reset() {
     _ttsService.stop();
     state = StoryState.idle;
   }
 
-  /// Retries narration after an error.
-  Future<void> retry() async {
+  Future<void> retry(String storyText) async {
     state = StoryState.idle;
-    await startNarration();
+    await startNarration(storyText);
   }
 
   @override
@@ -147,8 +137,8 @@ class StoryNotifier extends StateNotifier<StoryState> {
 // Riverpod provider
 // ---------------------------------------------------------------------------
 
-/// Top-level provider for the story narration state machine.
 final storyProvider = StateNotifierProvider<StoryNotifier, StoryState>((ref) {
   final ttsService = ref.watch(ttsServiceProvider);
   return StoryNotifier(ttsService);
 });
+

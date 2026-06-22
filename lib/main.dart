@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/story_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +51,8 @@ class PebloApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF7C4DFF),
+          secondary: const Color(0xFFFF9100),
+          tertiary: const Color(0xFF00E676),
           brightness: Brightness.light,
         ),
         // Uses system font by default. Uncomment fontFamily below if
@@ -59,13 +61,13 @@ class PebloApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFEDE7F6),
         // Smooth default page transitions
         pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          builders: <TargetPlatform, PageTransitionsBuilder>{
+            TargetPlatform.android: const FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: const FadeUpwardsPageTransitionsBuilder(),
           },
         ),
       ),
-      home: const StoryScreen(),
+      home: const HomeScreen(),
     );
   }
 }

@@ -8,17 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/quiz_model.dart';
 
 // ---------------------------------------------------------------------------
-// Quiz JSON data (could come from an API in production)
-// ---------------------------------------------------------------------------
-
-/// Raw quiz data — in a real app this would be fetched from a backend.
-const Map<String, dynamic> kQuizJson = {
-  'question': "What colour was Pip the Robot's lost gear?",
-  'options': ['Red', 'Green', 'Blue', 'Yellow'],
-  'answer': 'Blue',
-};
-
-// ---------------------------------------------------------------------------
 // Quiz state
 // ---------------------------------------------------------------------------
 
@@ -70,37 +59,37 @@ class QuizState {
 // ---------------------------------------------------------------------------
 
 /// Manages quiz interactions: answer selection, validation, and reset.
-class QuizNotifier extends StateNotifier<QuizState> {
-  QuizNotifier()
-      : super(
-          QuizState(quiz: QuizModel.fromJson(kQuizJson)),
-        );
+class QuizNotifier extends StateNotifier<QuizState?> {
+  QuizNotifier() : super(null);
 
-  /// Called when the user taps an option.
-  ///
-  /// Sets [hasAnswered] and [isCorrect] accordingly.
-  /// Increments [wrongAttempts] on incorrect answers to drive animations.
+  void setQuiz(QuizModel quiz) {
+    state = QuizState(quiz: quiz);
+  }
+
   void selectAnswer(String answer) {
-    final correct = state.quiz.isCorrect(answer);
-    state = state.copyWith(
+    if (state == null) return;
+    
+    final correct = state!.quiz.isCorrect(answer);
+    state = state!.copyWith(
       selectedAnswer: answer,
       isCorrect: correct,
       hasAnswered: true,
-      wrongAttempts: correct ? state.wrongAttempts : state.wrongAttempts + 1,
+      wrongAttempts: correct ? state!.wrongAttempts : state!.wrongAttempts + 1,
     );
   }
 
-  /// Clears the current selection so the user can try again.
   void clearSelection() {
+    if (state == null) return;
+    
     state = QuizState(
-      quiz: state.quiz,
-      wrongAttempts: state.wrongAttempts,
+      quiz: state!.quiz,
+      wrongAttempts: state!.wrongAttempts,
     );
   }
 
-  /// Resets the entire quiz to its initial state.
   void reset() {
-    state = QuizState(quiz: QuizModel.fromJson(kQuizJson));
+    if (state == null) return;
+    state = QuizState(quiz: state!.quiz);
   }
 }
 
@@ -109,6 +98,6 @@ class QuizNotifier extends StateNotifier<QuizState> {
 // ---------------------------------------------------------------------------
 
 /// Top-level provider for quiz state.
-final quizProvider = StateNotifierProvider<QuizNotifier, QuizState>((ref) {
+final quizProvider = StateNotifierProvider<QuizNotifier, QuizState?>((ref) {
   return QuizNotifier();
 });

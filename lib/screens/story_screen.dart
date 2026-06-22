@@ -10,6 +10,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/story_data.dart';
 import '../providers/story_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../widgets/buddy_avatar.dart';
@@ -19,11 +20,10 @@ import '../widgets/quiz_section.dart';
 import '../widgets/success_card.dart';
 
 /// The primary screen of the app — a single-page experience.
-///
-/// Uses [ConsumerStatefulWidget] to access Riverpod providers while
-/// also managing local animation controllers for confetti and quiz reveal.
 class StoryScreen extends ConsumerStatefulWidget {
-  const StoryScreen({super.key});
+  final StoryData storyData;
+
+  const StoryScreen({super.key, required this.storyData});
 
   @override
   ConsumerState<StoryScreen> createState() => _StoryScreenState();
@@ -40,11 +40,13 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
   void initState() {
     super.initState();
 
-    // Confetti controller for success celebration
-    _confettiController =
-        ConfettiController(duration: const Duration(seconds: 3));
+    // Set the quiz data into the provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(quizProvider.notifier).setQuiz(widget.storyData.quiz);
+    });
 
-    // Quiz slide-in animation
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+
     _quizSlideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -74,6 +76,7 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
   @override
   Widget build(BuildContext context) {
     final storyState = ref.watch(storyProvider);
+    final quizState = ref.watch(quizProvider);
 
     // React to state transitions
     ref.listen<StoryState>(storyProvider, (previous, next) {
@@ -90,55 +93,52 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
     });
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black54),
+          onPressed: () {
+            ref.read(storyProvider.notifier).reset();
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
       body: Stack(
         children: [
-          // ── Background gradient ──
           _Background(storyState: storyState),
-
-          // ── Main content ──
           SafeArea(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 40),
               child: Column(
                 children: [
-                  const SizedBox(height: 24),
-
-                  // ── App title ──
-                  _AppTitle(storyState: storyState),
+                  const SizedBox(height: 10),
+                  _AppTitle(storyState: storyState, title: widget.storyData.title),
                   const SizedBox(height: 20),
-
-                  // ── Buddy avatar ──
                   BuddyAvatar(storyState: storyState),
                   const SizedBox(height: 8),
-
-                  // ── Buddy speech bubble ──
                   _SpeechBubble(storyState: storyState),
                   const SizedBox(height: 24),
-
-                  // ── Story card ──
                   StoryCard(
-                    storyText: kStoryText,
+                    storyText: widget.storyData.text,
                     storyState: storyState,
                   ),
                   const SizedBox(height: 24),
-
-                  // ── Action button ──
                   if (storyState != StoryState.quizVisible &&
                       storyState != StoryState.success)
                     ReadStoryButton(
                       storyState: storyState,
                       onPressed: () {
                         if (storyState == StoryState.error) {
-                          ref.read(storyProvider.notifier).retry();
+                          ref.read(storyProvider.notifier).retry(widget.storyData.text);
                         } else {
-                          ref.read(storyProvider.notifier).startNarration();
+                          ref.read(storyProvider.notifier).startNarration(widget.storyData.text);
                         }
                       },
                     ),
-
-                  // ── Quiz section (slides in) ──
-                  if (storyState == StoryState.quizVisible)
+                  if (storyState == StoryState.quizVisible && quizState != null)
                     SlideTransition(
                       position: _quizSlideAnimation,
                       child: FadeTransition(
@@ -149,8 +149,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
                         ),
                       ),
                     ),
-
-                  // ── Success card ──
                   if (storyState == StoryState.success)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
@@ -161,8 +159,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
                         },
                       ),
                     ),
-
-                  // ── Error retry section ──
                   if (storyState == StoryState.error)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
@@ -193,8 +189,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
               ),
             ),
           ),
-
-          // ── Confetti overlay ──
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
@@ -225,7 +219,6 @@ class _StoryScreenState extends ConsumerState<StoryScreen>
 // Private helper widgets
 // ---------------------------------------------------------------------------
 
-/// Animated background gradient that shifts colors with story state.
 class _Background extends StatelessWidget {
   final StoryState storyState;
   const _Background({required this.storyState});
@@ -275,45 +268,48 @@ class _Background extends StatelessWidget {
   }
 }
 
-/// The app title with a decorative sparkle.
 class _AppTitle extends StatelessWidget {
   final StoryState storyState;
-  const _AppTitle({required this.storyState});
+  final String title;
+  const _AppTitle({required this.storyState, required this.title});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF7C4DFF), Color(0xFFE040FB)],
-          ).createShader(bounds),
-          child: const Text(
-            '✨ Peblo AI ✨',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: 1.2,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [Color(0xFF7C4DFF), Color(0xFFE040FB)],
+            ).createShader(bounds),
+            child: const Text(
+              '✨ Peblo AI ✨',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Story Buddy & Quiz',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade500,
-            letterSpacing: 2.0,
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+              letterSpacing: 0.5,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// A small speech bubble showing the buddy's current "mood".
 class _SpeechBubble extends StatelessWidget {
   final StoryState storyState;
   const _SpeechBubble({required this.storyState});
