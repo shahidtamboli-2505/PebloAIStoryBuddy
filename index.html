@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Peblo AI Story Buddy — A kid-friendly AI story reader with narration and interactive quiz. Meet Pip the Robot!">
+  <title>Peblo AI Story Buddy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Confetti Canvas Overlay -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Background gradient -->
+  <div id="app-background" class="app-background"></div>
+
+  <!-- Main Content -->
+  <div class="app-container">
+    <!-- App Title -->
+    <header class="app-title" id="app-title">
+      <h1 class="title-gradient">✨ Peblo AI ✨</h1>
+      <p class="subtitle">Story Buddy &amp; Quiz</p>
+    </header>
+
+    <!-- Buddy Avatar (Pip the Robot) -->
+    <div class="buddy-wrapper" id="buddy-wrapper">
+      <div class="buddy-avatar" id="buddy-avatar">
+        <!-- Antenna -->
+        <div class="antenna">
+          <div class="antenna-ball" id="antenna-ball"></div>
+          <div class="antenna-stem"></div>
+        </div>
+        <!-- Robot Head -->
+        <div class="robot-head" id="robot-head">
+          <!-- Left Ear -->
+          <div class="ear ear-left"></div>
+          <!-- Right Ear -->
+          <div class="ear ear-right"></div>
+          <!-- Left Eye -->
+          <div class="eye eye-left" id="eye-left">
+            <div class="pupil" id="pupil-left"></div>
+          </div>
+          <!-- Right Eye -->
+          <div class="eye eye-right" id="eye-right">
+            <div class="pupil" id="pupil-right"></div>
+          </div>
+          <!-- Left Cheek -->
+          <div class="cheek cheek-left"></div>
+          <!-- Right Cheek -->
+          <div class="cheek cheek-right"></div>
+          <!-- Mouth -->
+          <div class="mouth-wrapper" id="mouth-wrapper">
+            <div class="mouth" id="mouth"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Speech Bubble -->
+    <div class="speech-bubble-container">
+      <div class="speech-bubble" id="speech-bubble">
+        <span id="speech-text">Hi there! Ready for a story? 🌟</span>
+      </div>
+    </div>
+
+    <!-- Story Card -->
+    <div class="story-card-wrapper" id="story-card-wrapper">
+      <div class="story-card-border" id="story-card-border">
+        <div class="story-card-inner">
+          <div class="story-header">
+            <svg class="book-icon" id="book-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            <span class="story-header-text" id="story-header-text">📖  Pip's Story</span>
+          </div>
+          <p class="story-text" id="story-text">
+            Once upon a time, a clever little robot named Pip lost his shiny blue gear in the Whispering Woods. He searched high and low, asking the friendly fireflies and wise old owls for help. After a great adventure, Pip finally found his gear sparkling under a mushroom, guarded by a tiny sleeping snail. Pip thanked everyone and rolled home happily, his gears spinning bright!
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Read Story Button -->
+    <div id="button-container" class="button-container">
+      <button class="read-story-btn" id="read-story-btn">
+        <span class="btn-icon" id="btn-icon">▶</span>
+        <span class="btn-label" id="btn-label">Read Me a Story! 📖</span>
+      </button>
+    </div>
+
+    <!-- Quiz Section (hidden initially) -->
+    <div class="quiz-section" id="quiz-section">
+      <div class="quiz-border">
+        <div class="quiz-inner">
+          <div class="quiz-header">
+            <span class="quiz-icon">🧠</span>
+            <span class="quiz-title">Quiz Time!</span>
+          </div>
+          <p class="quiz-question" id="quiz-question"></p>
+          <div class="quiz-options" id="quiz-options"></div>
+          <p class="quiz-feedback" id="quiz-feedback"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Card (hidden initially) -->
+    <div class="success-card" id="success-card">
+      <div class="success-border">
+        <div class="success-inner">
+          <div class="trophy">🏆</div>
+          <h2 class="success-title">Amazing Job!</h2>
+          <p class="success-message">You helped Pip find his blue gear! 🎉</p>
+          <div class="stars">⭐ ⭐ ⭐</div>
+          <button class="play-again-btn" id="play-again-btn">
+            <span class="replay-icon">↻</span>
+            Play Again!
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Section (hidden initially) -->
+    <div class="error-section" id="error-section">
+      <p class="error-title">😢 Oops! Something went wrong.</p>
+      <p class="error-message">The story reader had a hiccup.<br>Tap the button to try again!</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

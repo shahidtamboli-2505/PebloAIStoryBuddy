@@ -1,0 +1,30 @@
+name: peblo_ai_story_buddy
+description: "A kid-friendly AI Story Buddy app with narration and interactive quiz."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  flutter_tts: ^4.2.0
+  confetti: ^0.8.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # To use a custom kid-friendly font, download BubblegumSans-Regular.ttf
+  # to assets/fonts/ and uncomment below:
+  # fonts:
+  #   - family: BubblegumSans
+  #     fonts:
+  #       - asset: assets/fonts/BubblegumSans-Regular.ttf
